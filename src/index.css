@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Prevent iOS auto-zoom on textarea focus */
+textarea, input[type="text"], input[type="password"] {
+  font-size: 16px;
+}
