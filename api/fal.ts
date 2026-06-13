@@ -2,8 +2,9 @@ export const config = { runtime: 'edge' }
 
 export default async function handler(request: Request): Promise<Response> {
   const url = new URL(request.url)
-  const targetPath = url.pathname.replace(/^\/api\/fal/, '')
-  const targetUrl = `https://queue.fal.run${targetPath}${url.search}`
+  const path = url.searchParams.get('path') ?? ''
+  url.searchParams.delete('path')
+  const targetUrl = `https://queue.fal.run/${path}${url.search}`
 
   const headers: Record<string, string> = {}
   const auth = request.headers.get('authorization')
