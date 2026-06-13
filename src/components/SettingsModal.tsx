@@ -1,13 +1,22 @@
 import { useState, useEffect } from 'react'
-import { X, Key, Eye, EyeOff, CheckCircle2, ExternalLink } from 'lucide-react'
+import { X, Key, Eye, EyeOff, CheckCircle2, ExternalLink, ImageIcon } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import type { ImageSource } from '../services/aiService'
+
+const IMAGE_SOURCE_OPTIONS: { value: ImageSource; label: string; desc: string }[] = [
+  { value: 'auto', label: 'อัตโนมัติ', desc: 'Google AI → Hugging Face' },
+  { value: 'google', label: 'Google AI', desc: 'Gemini / Imagen เท่านั้น' },
+  { value: 'huggingface', label: 'Hugging Face', desc: 'SD3.5 / FLUX เท่านั้น' },
+  { value: 'pexels', label: 'Pexels', desc: 'ค้นหารูปจริง (Stock Photo)' },
+]
 
 export function SettingsModal() {
-  const { apiKey, saveApiKey, hfToken, saveHfToken, falKey, saveFalKey, pexelsKey, savePexelsKey, showSettings, setShowSettings, showToast } = useApp()
+  const { apiKey, saveApiKey, hfToken, saveHfToken, falKey, saveFalKey, pexelsKey, savePexelsKey, imageSource, saveImageSource, showSettings, setShowSettings, showToast } = useApp()
   const [inputKey, setInputKey] = useState(apiKey)
   const [inputHf, setInputHf] = useState(hfToken)
   const [inputFal, setInputFal] = useState(falKey)
   const [inputPexels, setInputPexels] = useState(pexelsKey)
+  const [inputImageSource, setInputImageSource] = useState(imageSource)
   const [showKey, setShowKey] = useState(false)
   const [showHf, setShowHf] = useState(false)
   const [showFal, setShowFal] = useState(false)
@@ -19,18 +28,20 @@ export function SettingsModal() {
       setInputHf(hfToken)
       setInputFal(falKey)
       setInputPexels(pexelsKey)
+      setInputImageSource(imageSource)
       setShowKey(false)
       setShowHf(false)
       setShowFal(false)
       setShowPexels(false)
     }
-  }, [showSettings, apiKey, hfToken, falKey, pexelsKey])
+  }, [showSettings, apiKey, hfToken, falKey, pexelsKey, imageSource])
 
   const handleSave = () => {
     saveApiKey(inputKey)
     saveHfToken(inputHf)
     saveFalKey(inputFal)
     savePexelsKey(inputPexels)
+    saveImageSource(inputImageSource)
     showToast('บันทึก Settings เรียบร้อยแล้ว', 'success')
     setTimeout(() => setShowSettings(false), 800)
   }
@@ -61,6 +72,37 @@ export function SettingsModal() {
           </div>
 
           <div className="space-y-6">
+
+            {/* ── Image Source ── */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
+                <ImageIcon className="w-4 h-4 text-sky-400" />
+                แหล่งสร้างภาพ
+                <span className="text-xs text-slate-500 font-normal">(ปุ่ม Generate Image)</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {IMAGE_SOURCE_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setInputImageSource(opt.value)}
+                    className={`text-left rounded-xl border px-3 py-2.5 transition-colors ${
+                      inputImageSource === opt.value
+                        ? 'border-sky-500 bg-sky-500/10'
+                        : 'border-slate-700 bg-slate-800/60 hover:border-slate-600'
+                    }`}
+                  >
+                    <span className={`block text-sm font-medium ${inputImageSource === opt.value ? 'text-white' : 'text-slate-300'}`}>
+                      {opt.label}
+                    </span>
+                    <span className="block text-xs text-slate-500 mt-0.5">{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-slate-700/60" />
 
             {/* ── Google AI Studio API Key ── */}
             <div>

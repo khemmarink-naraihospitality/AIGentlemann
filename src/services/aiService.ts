@@ -14,6 +14,8 @@ export interface GenerateParams {
   speak?: string
 }
 
+export type ImageSource = 'auto' | 'google' | 'huggingface' | 'pexels'
+
 function geminiHeaders(apiKey: string): Record<string, string> {
   return {
     'Content-Type': 'application/json',
@@ -165,43 +167,11 @@ async function generateImageGoogle(apiKey: string, prompt: string): Promise<stri
 // Public API
 // ---------------------------------------------------------------------------
 
-export async function generateImage(
-  apiKey: string,
-  hfToken: string,
-  params: GenerateParams
-): Promise<string> {
-  if (!hfToken) {
-    throw new Error(
-      'กรุณาเพิ่ม Hugging Face Token ในหน้า Settings\n' +
-      'รับ token ฟรีได้ที่ huggingface.co/settings/tokens'
-    )
-  }
+const HF_TOKEN_ERROR =
+  'กรุณาเพิ่ม Hugging Face Token ในหน้า Settings\n' +
+  'รับ token ฟรีได้ที่ huggingface.co/settings/tokens'
 
-  const hasImages = !!(params.backgroundImage || params.personImage)
-  let prompt: string
-
-  if (hasImages && apiKey) {
-    prompt = await buildImagePrompt(apiKey, params)
-  } else if (apiKey && params.description) {
-    const translated = await translatePrompt(apiKey, params.description)
-    const caption = params.speak ? `, with caption text "${params.speak}"` : ''
-    prompt = `${translated}${caption}, high quality, sharp focus`
-  } else {
-    prompt = buildTextPrompt(params)
-  }
-
-  // Primary: Google AI (Gemini native → Imagen 3)
-  if (apiKey) {
-    try {
-      return await generateImageGoogle(apiKey, prompt)
-    } catch (err) {
-      const msg = (err as Error).message
-      if (/billing|paid|upgrade|quota/i.test(msg)) throw err
-      // Other Google errors → fallback to HF
-    }
-  }
-
-
+async function generateImageHF(hfToken: string, prompt: string): Promise<string> {
   const models = [
     { url: HF_IMAGE_MODEL_SD35, body: { inputs: prompt, parameters: { num_inference_steps: 8,  guidance_scale: 1.0 } } },
     { url: HF_IMAGE_MODEL_FLUX, body: { inputs: prompt, parameters: { num_inference_steps: 8 } } },
@@ -244,6 +214,51 @@ export async function generateImage(
   }
 
   throw new Error('ไม่สามารถสร้างภาพได้ กรุณาลองใหม่อีกครั้ง')
+}
+
+export async function generateImage(
+  apiKey: string,
+  hfToken: string,
+  params: GenerateParams,
+  source: ImageSource = 'auto'
+): Promise<string> {
+  const hasImages = !!(params.backgroundImage || params.personImage)
+  let prompt: string
+
+  if (hasImages && apiKey) {
+    prompt = await buildImagePrompt(apiKey, params)
+  } else if (apiKey && params.description) {
+    const translated = await translatePrompt(apiKey, params.description)
+    const caption = params.speak ? `, with caption text "${params.speak}"` : ''
+    prompt = `${translated}${caption}, high quality, sharp focus`
+  } else {
+    prompt = buildTextPrompt(params)
+  }
+
+  if (source === 'google') {
+    if (!apiKey) throw new Error('กรุณาตั้งค่า Google AI Studio API Key ในหน้า Settings')
+    return generateImageGoogle(apiKey, prompt)
+  }
+
+  if (source === 'huggingface') {
+    if (!hfToken) throw new Error(HF_TOKEN_ERROR)
+    return generateImageHF(hfToken, prompt)
+  }
+
+  // 'auto' — Google AI first (if configured), fallback to Hugging Face
+  if (!hfToken) throw new Error(HF_TOKEN_ERROR)
+
+  if (apiKey) {
+    try {
+      return await generateImageGoogle(apiKey, prompt)
+    } catch (err) {
+      const msg = (err as Error).message
+      if (/billing|paid|upgrade|quota/i.test(msg)) throw err
+      // Other Google errors → fallback to HF
+    }
+  }
+
+  return generateImageHF(hfToken, prompt)
 }
 
 // ---------------------------------------------------------------------------

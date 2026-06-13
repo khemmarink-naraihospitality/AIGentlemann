@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { ImageIcon, User, X, Loader2, Video, Search } from 'lucide-react'
+import { ImageIcon, User, X, Loader2, Video } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { generateImage, generateVideo, searchStockPhoto, type GenerateParams } from '../services/aiService'
 import { db } from '../db/db'
@@ -10,14 +10,13 @@ interface FilePreview {
 }
 
 export function InputForm() {
-  const { apiKey, hfToken, falKey, pexelsKey, showToast, setActiveTab, refreshHistory, setShowSettings } = useApp()
+  const { apiKey, hfToken, falKey, pexelsKey, imageSource, showToast, setActiveTab, refreshHistory, setShowSettings } = useApp()
   const [bgFile, setBgFile] = useState<FilePreview | null>(null)
   const [personFile, setPersonFile] = useState<FilePreview | null>(null)
   const [description, setDescription] = useState('')
   const [speak, setSpeak] = useState('')
   const [loadingImg, setLoadingImg] = useState(false)
   const [loadingVid, setLoadingVid] = useState(false)
-  const [loadingStock, setLoadingStock] = useState(false)
 
   const bgRef = useRef<HTMLInputElement>(null)
   const personRef = useRef<HTMLInputElement>(null)
@@ -42,7 +41,54 @@ export function InputForm() {
   }
 
   const handleGenerate = async (type: 'image' | 'video') => {
-    if (!apiKey) {
+    // Pexels: search instead of AI generation
+    if (type === 'image' && imageSource === 'pexels') {
+      if (!pexelsKey) {
+        showToast('กรุณาตั้งค่า Pexels API Key ในหน้า Settings ก่อนใช้งาน', 'error')
+        setShowSettings(true)
+        return
+      }
+      if (!description.trim()) {
+        showToast('กรุณากรอก Description เพื่อใช้เป็นคำค้นหารูปภาพ', 'error')
+        return
+      }
+
+      setLoadingImg(true)
+      showToast('กำลังค้นหารูปภาพจาก Pexels...', 'loading')
+
+      try {
+        const dataUrl = await searchStockPhoto(pexelsKey, apiKey, { description: description.trim() })
+
+        await db.history.add({
+          type: 'image',
+          dataUrl,
+          mimeType: 'image/jpeg',
+          prompt: description.trim(),
+          createdAt: Date.now(),
+        })
+
+        await refreshHistory()
+        showToast('พบรูปภาพแล้ว!', 'success')
+        setActiveTab('history')
+      } catch (err) {
+        showToast((err as Error).message, 'error')
+      } finally {
+        setLoadingImg(false)
+      }
+      return
+    }
+
+    if (type === 'image' && imageSource === 'google' && !apiKey) {
+      showToast('กรุณาตั้งค่า Google AI Studio API Key ในหน้า Settings ก่อนใช้งาน', 'error')
+      setShowSettings(true)
+      return
+    }
+    if (type === 'image' && imageSource === 'huggingface' && !hfToken) {
+      showToast('กรุณาตั้งค่า Hugging Face Token ในหน้า Settings ก่อนใช้งาน', 'error')
+      setShowSettings(true)
+      return
+    }
+    if ((type === 'video' || imageSource === 'auto') && !apiKey) {
       showToast('กรุณาตั้งค่า API Key ในหน้า Settings ก่อนใช้งาน', 'error')
       setShowSettings(true)
       return
@@ -52,7 +98,9 @@ export function InputForm() {
     setLoading(true)
     showToast(
       type === 'image'
-        ? 'กำลังสร้างภาพด้วย Google AI... (อาจใช้เวลา 10-20 วินาที)'
+        ? imageSource === 'huggingface'
+          ? 'กำลังสร้างภาพด้วย Hugging Face... (อาจใช้เวลา 10-30 วินาที)'
+          : 'กำลังสร้างภาพด้วย Google AI... (อาจใช้เวลา 10-20 วินาที)'
         : falKey
           ? 'กำลังสร้างวิดีโอด้วย Wan2.1 (Fal.ai)... อาจใช้เวลา 1-3 นาที'
           : 'กำลังสร้างวิดีโอด้วย Veo... อาจใช้เวลา 1–2 นาที',
@@ -68,7 +116,7 @@ export function InputForm() {
       }
 
       const dataUrl = type === 'image'
-        ? await generateImage(apiKey, hfToken, params)
+        ? await generateImage(apiKey, hfToken, params, imageSource)
         : await generateVideo(apiKey, falKey, params)
 
       await db.history.add({
@@ -89,44 +137,7 @@ export function InputForm() {
     }
   }
 
-  const handleStockSearch = async () => {
-    if (!pexelsKey) {
-      showToast('กรุณาตั้งค่า Pexels API Key ในหน้า Settings ก่อนใช้งาน', 'error')
-      setShowSettings(true)
-      return
-    }
-    if (!description.trim()) {
-      showToast('กรุณากรอก Description เพื่อใช้เป็นคำค้นหารูปภาพ', 'error')
-      return
-    }
-
-    setLoadingStock(true)
-    showToast('กำลังค้นหารูปภาพจาก Pexels...', 'loading')
-
-    try {
-      const dataUrl = await searchStockPhoto(pexelsKey, apiKey, {
-        description: description.trim(),
-      })
-
-      await db.history.add({
-        type: 'image',
-        dataUrl,
-        mimeType: 'image/jpeg',
-        prompt: description.trim(),
-        createdAt: Date.now(),
-      })
-
-      await refreshHistory()
-      showToast('พบรูปภาพแล้ว!', 'success')
-      setActiveTab('history')
-    } catch (err) {
-      showToast((err as Error).message, 'error')
-    } finally {
-      setLoadingStock(false)
-    }
-  }
-
-  const isLoading = loadingImg || loadingVid || loadingStock
+  const isLoading = loadingImg || loadingVid
 
   return (
     <div className="space-y-5">
@@ -253,7 +264,7 @@ export function InputForm() {
             ? <Loader2 className="w-4 h-4 animate-spin" />
             : <ImageIcon className="w-4 h-4" />
           }
-          Generate Image
+          {imageSource === 'pexels' ? 'ค้นหารูปภาพ (Pexels)' : 'Generate Image'}
         </button>
 
         <button
@@ -268,19 +279,6 @@ export function InputForm() {
           Generate Video
         </button>
       </div>
-
-      {/* Stock Photo (Pexels) */}
-      <button
-        onClick={handleStockSearch}
-        disabled={isLoading}
-        className="w-full h-12 rounded-xl font-semibold text-sm text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-      >
-        {loadingStock
-          ? <Loader2 className="w-4 h-4 animate-spin" />
-          : <Search className="w-4 h-4" />
-        }
-        ค้นหารูปภาพจาก Pexels (Stock Photo)
-      </button>
     </div>
   )
 }

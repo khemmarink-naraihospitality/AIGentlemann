@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react'
 import { db, type HistoryItem } from '../db/db'
+import type { ImageSource } from '../services/aiService'
 
 interface Toast {
   id: number
@@ -23,6 +24,8 @@ interface AppContextValue {
   saveFalKey: (key: string) => void
   pexelsKey: string
   savePexelsKey: (key: string) => void
+  imageSource: ImageSource
+  saveImageSource: (source: ImageSource) => void
   showSettings: boolean
   setShowSettings: (v: boolean) => void
   activeTab: 'create' | 'history'
@@ -42,6 +45,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [hfToken, setHfToken] = useState(() => localStorage.getItem('hf-token') ?? '')
   const [falKey, setFalKey] = useState(() => localStorage.getItem('fal-key') ?? '')
   const [pexelsKey, setPexelsKey] = useState(() => localStorage.getItem('pexels-key') ?? '')
+  const [imageSource, setImageSource] = useState<ImageSource>(() => {
+    const saved = localStorage.getItem('image-source')
+    return saved === 'google' || saved === 'huggingface' || saved === 'pexels' ? saved : 'auto'
+  })
   const [showSettings, setShowSettings] = useState(false)
   const [activeTab, setActiveTab] = useState<'create' | 'history'>('create')
   const [history, setHistory] = useState<HistoryItem[]>([])
@@ -78,6 +85,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('pexels-key', trimmed)
   }
 
+  const saveImageSource = (source: ImageSource) => {
+    setImageSource(source)
+    localStorage.setItem('image-source', source)
+  }
+
   const deleteHistoryItem = async (id: number) => {
     await db.history.delete(id)
     await refreshHistory()
@@ -101,6 +113,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         hfToken, saveHfToken,
         falKey, saveFalKey,
         pexelsKey, savePexelsKey,
+        imageSource, saveImageSource,
         showSettings, setShowSettings,
         activeTab, setActiveTab,
         history, refreshHistory, deleteHistoryItem,
