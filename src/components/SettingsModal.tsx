@@ -73,6 +73,53 @@ export function SettingsModal() {
 
           <div className="space-y-6">
 
+            {/* ── API Comparison Table ── */}
+            <div>
+              <p className="text-sm font-medium text-slate-300 mb-2">เปรียบเทียบ API ที่ใช้ได้</p>
+              <div className="overflow-x-auto rounded-xl border border-slate-700/60">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-800/80 text-slate-400">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">API</th>
+                      <th className="px-3 py-2 font-medium text-center">Image</th>
+                      <th className="px-3 py-2 font-medium text-center">Video</th>
+                      <th className="px-3 py-2 font-medium">หมายเหตุ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/60 text-slate-300">
+                    <tr>
+                      <td className="px-3 py-2 font-medium whitespace-nowrap">Google AI</td>
+                      <td className="px-3 py-2 text-center text-emerald-400">✓</td>
+                      <td className="px-3 py-2 text-center text-emerald-400">✓</td>
+                      <td className="px-3 py-2 text-slate-400">ต้องเปิด Billing</td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2 font-medium whitespace-nowrap">Hugging Face</td>
+                      <td className="px-3 py-2 text-center text-emerald-400">✓</td>
+                      <td className="px-3 py-2 text-center text-slate-600">—</td>
+                      <td className="px-3 py-2 text-slate-400">ฟรี</td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2 font-medium whitespace-nowrap">Fal.ai</td>
+                      <td className="px-3 py-2 text-center text-slate-600">—</td>
+                      <td className="px-3 py-2 text-center text-emerald-400">✓</td>
+                      <td className="px-3 py-2 text-slate-400">จ่ายเงิน</td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2 font-medium whitespace-nowrap">Pexels</td>
+                      <td className="px-3 py-2 text-center text-amber-400">✓*</td>
+                      <td className="px-3 py-2 text-center text-slate-600">—</td>
+                      <td className="px-3 py-2 text-slate-400">ค้นรูปจริง ไม่ generate</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-slate-500 mt-1.5">* Pexels = ค้นหารูป stock ที่มีอยู่แล้ว ไม่ใช่ AI สร้างใหม่</p>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-slate-700/60" />
+
             {/* ── Image Source ── */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
