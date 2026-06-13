@@ -3,29 +3,34 @@ import { X, Key, Eye, EyeOff, CheckCircle2, ExternalLink } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 
 export function SettingsModal() {
-  const { apiKey, saveApiKey, hfToken, saveHfToken, falKey, saveFalKey, showSettings, setShowSettings, showToast } = useApp()
+  const { apiKey, saveApiKey, hfToken, saveHfToken, falKey, saveFalKey, pexelsKey, savePexelsKey, showSettings, setShowSettings, showToast } = useApp()
   const [inputKey, setInputKey] = useState(apiKey)
   const [inputHf, setInputHf] = useState(hfToken)
   const [inputFal, setInputFal] = useState(falKey)
+  const [inputPexels, setInputPexels] = useState(pexelsKey)
   const [showKey, setShowKey] = useState(false)
   const [showHf, setShowHf] = useState(false)
   const [showFal, setShowFal] = useState(false)
+  const [showPexels, setShowPexels] = useState(false)
 
   useEffect(() => {
     if (showSettings) {
       setInputKey(apiKey)
       setInputHf(hfToken)
       setInputFal(falKey)
+      setInputPexels(pexelsKey)
       setShowKey(false)
       setShowHf(false)
       setShowFal(false)
+      setShowPexels(false)
     }
-  }, [showSettings, apiKey, hfToken, falKey])
+  }, [showSettings, apiKey, hfToken, falKey, pexelsKey])
 
   const handleSave = () => {
     saveApiKey(inputKey)
     saveHfToken(inputHf)
     saveFalKey(inputFal)
+    savePexelsKey(inputPexels)
     showToast('บันทึก Settings เรียบร้อยแล้ว', 'success')
     setTimeout(() => setShowSettings(false), 800)
   }
@@ -201,6 +206,56 @@ export function SettingsModal() {
                 <span className="inline-flex items-center gap-1 text-amber-400 pt-0.5">
                   <ExternalLink className="w-3 h-3" />
                   fal.ai/dashboard/settings/keys
+                </span>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-slate-700/60" />
+
+            {/* ── Pexels API Key ── */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
+                <Key className="w-4 h-4 text-emerald-400" />
+                Pexels API Key
+                <span className="text-xs text-slate-500 font-normal">(สำหรับค้นหา Stock Photo)</span>
+              </label>
+
+              <div className="relative">
+                <input
+                  type={showPexels ? 'text' : 'password'}
+                  value={inputPexels}
+                  onChange={e => setInputPexels(e.target.value)}
+                  placeholder="563492ad6f91700001000001..."
+                  autoComplete="off"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 pr-12 text-slate-200 placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPexels(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  {showPexels ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {pexelsKey && (
+                <div className="flex items-center gap-1.5 mt-2 text-xs text-emerald-400">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>บันทึกแล้ว</span>
+                </div>
+              )}
+
+              <div className="mt-3 bg-slate-800/70 rounded-xl p-3 text-xs text-slate-400 space-y-1">
+                <p className="font-medium text-slate-300">วิธีรับ Pexels API Key (ฟรี)</p>
+                <ol className="list-decimal list-inside space-y-0.5 leading-relaxed">
+                  <li>สมัครที่ pexels.com/api (ฟรี)</li>
+                  <li>คลิก "Get Started" แล้วเข้าสู่ระบบ</li>
+                  <li>คัดลอก API Key มาวางด้านบน</li>
+                </ol>
+                <span className="inline-flex items-center gap-1 text-emerald-400 pt-0.5">
+                  <ExternalLink className="w-3 h-3" />
+                  pexels.com/api
                 </span>
               </div>
             </div>

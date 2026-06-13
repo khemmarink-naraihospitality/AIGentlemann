@@ -5,6 +5,7 @@ const HF_IMAGE_MODEL_SD35  = '/api/hf/hf-inference/models/stabilityai/stable-dif
 const HF_IMAGE_MODEL_FLUX  = '/api/hf/hf-inference/models/black-forest-labs/FLUX.1-schnell'
 const FAL_BASE = '/api/fal'
 const FAL_VIDEO_MODEL = 'fal-ai/wan/v2.1/1.3b/text-to-video'
+const PEXELS_BASE = '/api/pexels'
 
 export interface GenerateParams {
   backgroundImage?: string  // base64 data URL
@@ -243,6 +244,59 @@ export async function generateImage(
   }
 
   throw new Error('ไม่สามารถสร้างภาพได้ กรุณาลองใหม่อีกครั้ง')
+}
+
+// ---------------------------------------------------------------------------
+// Pexels stock photo search
+// ---------------------------------------------------------------------------
+
+export async function searchStockPhoto(
+  pexelsKey: string,
+  apiKey: string,
+  params: GenerateParams
+): Promise<string> {
+  if (!pexelsKey) {
+    throw new Error(
+      'กรุณาเพิ่ม Pexels API Key ในหน้า Settings\n' +
+      'รับ Key ฟรีได้ที่ pexels.com/api'
+    )
+  }
+
+  const description = params.description?.trim()
+  if (!description) {
+    throw new Error('กรุณากรอก Description เพื่อใช้เป็นคำค้นหารูปภาพ')
+  }
+
+  const query = apiKey ? await translatePrompt(apiKey, description) : description
+
+  const res = await fetch(
+    `${PEXELS_BASE}/v1/search?query=${encodeURIComponent(query)}&per_page=15&orientation=portrait`,
+    { headers: { 'Authorization': pexelsKey } }
+  )
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      throw new Error('Pexels API Key ไม่ถูกต้อง กรุณาตรวจสอบ Key ในหน้า Settings')
+    }
+    throw new Error(`Pexels API ไม่สามารถใช้งานได้ (${res.status})`)
+  }
+
+  const json = await res.json()
+  const photos: Array<{ src: Record<string, string> }> = json.photos ?? []
+  if (photos.length === 0) {
+    throw new Error('ไม่พบรูปภาพที่ตรงกับคำอธิบาย ลองเปลี่ยนคำอธิบายดูใหม่')
+  }
+
+  const pick = photos[Math.floor(Math.random() * photos.length)]
+  const imgUrl = pick.src.large2x || pick.src.large || pick.src.original
+
+  try {
+    const imgRes = await fetch(imgUrl)
+    if (imgRes.ok) return blobToDataUrl(await imgRes.blob())
+  } catch {
+    // CORS or network issue — fall back to the direct image URL
+  }
+  return imgUrl
 }
 
 async function generateVideoFal(

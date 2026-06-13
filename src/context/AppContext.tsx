@@ -21,6 +21,8 @@ interface AppContextValue {
   saveHfToken: (token: string) => void
   falKey: string
   saveFalKey: (key: string) => void
+  pexelsKey: string
+  savePexelsKey: (key: string) => void
   showSettings: boolean
   setShowSettings: (v: boolean) => void
   activeTab: 'create' | 'history'
@@ -39,6 +41,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('ai-api-key') ?? '')
   const [hfToken, setHfToken] = useState(() => localStorage.getItem('hf-token') ?? '')
   const [falKey, setFalKey] = useState(() => localStorage.getItem('fal-key') ?? '')
+  const [pexelsKey, setPexelsKey] = useState(() => localStorage.getItem('pexels-key') ?? '')
   const [showSettings, setShowSettings] = useState(false)
   const [activeTab, setActiveTab] = useState<'create' | 'history'>('create')
   const [history, setHistory] = useState<HistoryItem[]>([])
@@ -69,6 +72,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('fal-key', trimmed)
   }
 
+  const savePexelsKey = (key: string) => {
+    const trimmed = key.trim()
+    setPexelsKey(trimmed)
+    localStorage.setItem('pexels-key', trimmed)
+  }
+
   const deleteHistoryItem = async (id: number) => {
     await db.history.delete(id)
     await refreshHistory()
@@ -91,6 +100,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         apiKey, saveApiKey,
         hfToken, saveHfToken,
         falKey, saveFalKey,
+        pexelsKey, savePexelsKey,
         showSettings, setShowSettings,
         activeTab, setActiveTab,
         history, refreshHistory, deleteHistoryItem,

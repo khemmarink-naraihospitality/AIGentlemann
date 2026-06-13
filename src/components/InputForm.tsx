@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
-import { ImageIcon, User, X, Loader2, Video } from 'lucide-react'
+import { ImageIcon, User, X, Loader2, Video, Search } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { generateImage, generateVideo, type GenerateParams } from '../services/aiService'
+import { generateImage, generateVideo, searchStockPhoto, type GenerateParams } from '../services/aiService'
 import { db } from '../db/db'
 
 interface FilePreview {
@@ -10,13 +10,14 @@ interface FilePreview {
 }
 
 export function InputForm() {
-  const { apiKey, hfToken, falKey, showToast, setActiveTab, refreshHistory, setShowSettings } = useApp()
+  const { apiKey, hfToken, falKey, pexelsKey, showToast, setActiveTab, refreshHistory, setShowSettings } = useApp()
   const [bgFile, setBgFile] = useState<FilePreview | null>(null)
   const [personFile, setPersonFile] = useState<FilePreview | null>(null)
   const [description, setDescription] = useState('')
   const [speak, setSpeak] = useState('')
   const [loadingImg, setLoadingImg] = useState(false)
   const [loadingVid, setLoadingVid] = useState(false)
+  const [loadingStock, setLoadingStock] = useState(false)
 
   const bgRef = useRef<HTMLInputElement>(null)
   const personRef = useRef<HTMLInputElement>(null)
@@ -88,7 +89,44 @@ export function InputForm() {
     }
   }
 
-  const isLoading = loadingImg || loadingVid
+  const handleStockSearch = async () => {
+    if (!pexelsKey) {
+      showToast('กรุณาตั้งค่า Pexels API Key ในหน้า Settings ก่อนใช้งาน', 'error')
+      setShowSettings(true)
+      return
+    }
+    if (!description.trim()) {
+      showToast('กรุณากรอก Description เพื่อใช้เป็นคำค้นหารูปภาพ', 'error')
+      return
+    }
+
+    setLoadingStock(true)
+    showToast('กำลังค้นหารูปภาพจาก Pexels...', 'loading')
+
+    try {
+      const dataUrl = await searchStockPhoto(pexelsKey, apiKey, {
+        description: description.trim(),
+      })
+
+      await db.history.add({
+        type: 'image',
+        dataUrl,
+        mimeType: 'image/jpeg',
+        prompt: description.trim(),
+        createdAt: Date.now(),
+      })
+
+      await refreshHistory()
+      showToast('พบรูปภาพแล้ว!', 'success')
+      setActiveTab('history')
+    } catch (err) {
+      showToast((err as Error).message, 'error')
+    } finally {
+      setLoadingStock(false)
+    }
+  }
+
+  const isLoading = loadingImg || loadingVid || loadingStock
 
   return (
     <div className="space-y-5">
@@ -230,6 +268,19 @@ export function InputForm() {
           Generate Video
         </button>
       </div>
+
+      {/* Stock Photo (Pexels) */}
+      <button
+        onClick={handleStockSearch}
+        disabled={isLoading}
+        className="w-full h-12 rounded-xl font-semibold text-sm text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+      >
+        {loadingStock
+          ? <Loader2 className="w-4 h-4 animate-spin" />
+          : <Search className="w-4 h-4" />
+        }
+        ค้นหารูปภาพจาก Pexels (Stock Photo)
+      </button>
     </div>
   )
 }
