@@ -1,8 +1,9 @@
-import { Wand2, Clock } from 'lucide-react'
+import { Wand2, Settings, Clock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 
 const TABS = [
   { id: 'create' as const, label: 'Create', icon: Wand2 },
+  { id: 'settings' as const, label: 'API Setting', icon: Settings },
   { id: 'history' as const, label: 'History', icon: Clock },
 ]
 
@@ -16,13 +17,13 @@ export function TabBar() {
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors relative
+            className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap
               ${activeTab === id
                 ? 'text-indigo-400'
                 : 'text-slate-500 hover:text-slate-300 active:text-slate-200'
               }`}
           >
-            <Icon className="w-4 h-4" />
+            <Icon className="w-4 h-4 shrink-0" />
             {label}
             {activeTab === id && (
               <span className="absolute bottom-0 inset-x-4 h-0.5 bg-indigo-500 rounded-full" />

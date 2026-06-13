@@ -26,10 +26,8 @@ interface AppContextValue {
   savePexelsKey: (key: string) => void
   imageSource: ImageSource
   saveImageSource: (source: ImageSource) => void
-  showSettings: boolean
-  setShowSettings: (v: boolean) => void
-  activeTab: 'create' | 'history'
-  setActiveTab: (tab: 'create' | 'history') => void
+  activeTab: 'create' | 'settings' | 'history'
+  setActiveTab: (tab: 'create' | 'settings' | 'history') => void
   history: HistoryItem[]
   refreshHistory: () => Promise<void>
   deleteHistoryItem: (id: number) => Promise<void>
@@ -49,8 +47,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('image-source')
     return saved === 'google' || saved === 'huggingface' || saved === 'pexels' ? saved : 'auto'
   })
-  const [showSettings, setShowSettings] = useState(false)
-  const [activeTab, setActiveTab] = useState<'create' | 'history'>('create')
+  const [activeTab, setActiveTab] = useState<'create' | 'settings' | 'history'>('create')
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [toast, setToast] = useState<Toast | null>(null)
 
@@ -114,7 +111,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         falKey, saveFalKey,
         pexelsKey, savePexelsKey,
         imageSource, saveImageSource,
-        showSettings, setShowSettings,
         activeTab, setActiveTab,
         history, refreshHistory, deleteHistoryItem,
         toast, showToast, dismissToast,

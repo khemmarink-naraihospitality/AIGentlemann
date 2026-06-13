@@ -10,7 +10,7 @@ interface FilePreview {
 }
 
 export function InputForm() {
-  const { apiKey, hfToken, falKey, pexelsKey, imageSource, showToast, setActiveTab, refreshHistory, setShowSettings } = useApp()
+  const { apiKey, hfToken, falKey, pexelsKey, imageSource, showToast, setActiveTab, refreshHistory } = useApp()
   const [bgFile, setBgFile] = useState<FilePreview | null>(null)
   const [personFile, setPersonFile] = useState<FilePreview | null>(null)
   const [description, setDescription] = useState('')
@@ -45,7 +45,7 @@ export function InputForm() {
     if (type === 'image' && imageSource === 'pexels') {
       if (!pexelsKey) {
         showToast('กรุณาตั้งค่า Pexels API Key ในหน้า Settings ก่อนใช้งาน', 'error')
-        setShowSettings(true)
+        setActiveTab('settings')
         return
       }
       if (!description.trim()) {
@@ -80,17 +80,17 @@ export function InputForm() {
 
     if (type === 'image' && imageSource === 'google' && !apiKey) {
       showToast('กรุณาตั้งค่า Google AI Studio API Key ในหน้า Settings ก่อนใช้งาน', 'error')
-      setShowSettings(true)
+      setActiveTab('settings')
       return
     }
     if (type === 'image' && imageSource === 'huggingface' && !hfToken) {
       showToast('กรุณาตั้งค่า Hugging Face Token ในหน้า Settings ก่อนใช้งาน', 'error')
-      setShowSettings(true)
+      setActiveTab('settings')
       return
     }
     if ((type === 'video' || imageSource === 'auto') && !apiKey) {
       showToast('กรุณาตั้งค่า API Key ในหน้า Settings ก่อนใช้งาน', 'error')
-      setShowSettings(true)
+      setActiveTab('settings')
       return
     }
 

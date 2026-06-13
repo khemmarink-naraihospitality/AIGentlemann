@@ -2,7 +2,7 @@ import { Settings, Sparkles } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 
 export function Header() {
-  const { setShowSettings } = useApp()
+  const { setActiveTab } = useApp()
 
   return (
     <header className="fixed top-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-700/50">
@@ -16,7 +16,7 @@ export function Header() {
           </span>
         </div>
         <button
-          onClick={() => setShowSettings(true)}
+          onClick={() => setActiveTab('settings')}
           aria-label="Settings"
           className="w-9 h-9 flex items-center justify-center rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
         >
