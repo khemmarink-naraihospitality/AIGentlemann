@@ -113,8 +113,9 @@ export function SettingsPage() {
                   : 'border-slate-700 bg-slate-800/60 hover:border-slate-600'
               }`}
             >
-              <span className={`block text-sm font-medium ${inputImageSource === opt.value ? 'text-white' : 'text-slate-300'}`}>
+              <span className={`flex items-center gap-1.5 text-sm font-medium ${inputImageSource === opt.value ? 'text-white' : 'text-slate-300'}`}>
                 {opt.label}
+                {inputImageSource === opt.value && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
               </span>
               <span className="block text-xs text-slate-500 mt-0.5">{opt.desc}</span>
             </button>
