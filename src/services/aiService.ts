@@ -213,7 +213,7 @@ async function generateImageHF(hfToken: string, prompt: string): Promise<string>
     }
   }
 
-  throw new Error('ไม่สามารถสร้างภาพได้ กรุณาลองใหม่อีกครั้ง')
+  throw new Error('Hugging Face: ไม่สามารถสร้างภาพได้ (ลองทุกโมเดลแล้ว) กรุณาลองใหม่อีกครั้ง')
 }
 
 export async function generateImage(
@@ -299,7 +299,7 @@ export async function searchStockPhoto(
   const json = await res.json()
   const photos: Array<{ src: Record<string, string> }> = json.photos ?? []
   if (photos.length === 0) {
-    throw new Error('ไม่พบรูปภาพที่ตรงกับคำอธิบาย ลองเปลี่ยนคำอธิบายดูใหม่')
+    throw new Error('Pexels: ไม่พบรูปภาพที่ตรงกับคำอธิบาย ลองเปลี่ยนคำอธิบายดูใหม่')
   }
 
   const pick = photos[Math.floor(Math.random() * photos.length)]
@@ -347,15 +347,15 @@ async function generateVideoFal(
       const res = await fetch(resultUrl, { headers: { 'Authorization': `Key ${falKey}` } })
       const result = await res.json()
       const videoUrl: string | undefined = result.video?.url
-      if (!videoUrl) throw new Error('ไม่พบข้อมูลวิดีโอในผลลัพธ์ กรุณาลองใหม่')
+      if (!videoUrl) throw new Error('Fal.ai: ไม่พบข้อมูลวิดีโอในผลลัพธ์ กรุณาลองใหม่')
       return videoUrl
     }
     if (status === 'FAILED') {
-      throw new Error('การสร้างวิดีโอล้มเหลว กรุณาลองใหม่อีกครั้ง')
+      throw new Error('Fal.ai: การสร้างวิดีโอล้มเหลว กรุณาลองใหม่อีกครั้ง')
     }
   }
 
-  throw new Error('หมดเวลารอผลลัพธ์ (5 นาที) กรุณาลองสร้างวิดีโออีกครั้ง')
+  throw new Error('Fal.ai: หมดเวลารอผลลัพธ์ (5 นาที) กรุณาลองสร้างวิดีโออีกครั้ง')
 }
 
 export async function generateVideo(
@@ -402,9 +402,9 @@ export async function generateVideo(
       const videoData: string | undefined =
         pollData.response?.predictions?.[0]?.bytesBase64Encoded
       if (videoData) return `data:video/mp4;base64,${videoData}`
-      throw new Error('ไม่พบข้อมูลวิดีโอในผลลัพธ์ กรุณาลองใหม่')
+      throw new Error('Veo: ไม่พบข้อมูลวิดีโอในผลลัพธ์ กรุณาลองใหม่')
     }
   }
 
-  throw new Error('หมดเวลารอผลลัพธ์ (120 วินาที) กรุณาลองสร้างวิดีโออีกครั้ง')
+  throw new Error('Veo: หมดเวลารอผลลัพธ์ (120 วินาที) กรุณาลองสร้างวิดีโออีกครั้ง')
 }
