@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
+    "@upstash/redis": "^1.38.0",
     "autoprefixer": "^10.5.0",
     "dexie": "^4.4.3",
     "lucide-react": "^1.17.0",

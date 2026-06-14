@@ -8,6 +8,7 @@ import {
 } from 'react'
 import { db, type HistoryItem } from '../db/db'
 import type { ImageSource } from '../services/aiService'
+import { pullSettings, pushSettings, type SyncedSettings, type SyncResult } from '../services/syncService'
 
 interface Toast {
   id: number
@@ -34,6 +35,13 @@ interface AppContextValue {
   toast: Toast | null
   showToast: (message: string, type: Toast['type']) => void
   dismissToast: () => void
+  syncPin: string
+  settingsUnlocked: boolean
+  connectSync: (pin: string) => Promise<SyncResult>
+  unlockWithPin: (pin: string) => boolean
+  disconnectSync: () => void
+  syncToServer: (settings: SyncedSettings) => Promise<SyncResult>
+  pullFromServer: () => Promise<SyncResult>
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -50,6 +58,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activeTab, setActiveTab] = useState<'create' | 'settings' | 'history'>('create')
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [toast, setToast] = useState<Toast | null>(null)
+  const [syncPin, setSyncPinState] = useState(() => localStorage.getItem('sync-pin') ?? '')
+  const [settingsUnlocked, setSettingsUnlocked] = useState(() => !localStorage.getItem('sync-pin'))
 
   const refreshHistory = useCallback(async () => {
     const items = await db.history.orderBy('createdAt').reverse().toArray()
@@ -87,6 +97,53 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('image-source', source)
   }
 
+  const applySyncedSettings = (data: SyncedSettings) => {
+    if (typeof data.apiKey === 'string') saveApiKey(data.apiKey)
+    if (typeof data.hfToken === 'string') saveHfToken(data.hfToken)
+    if (typeof data.falKey === 'string') saveFalKey(data.falKey)
+    if (typeof data.pexelsKey === 'string') savePexelsKey(data.pexelsKey)
+    if (data.imageSource === 'google' || data.imageSource === 'huggingface' || data.imageSource === 'pexels' || data.imageSource === 'auto') {
+      saveImageSource(data.imageSource)
+    }
+  }
+
+  const connectSync = async (pin: string): Promise<SyncResult> => {
+    const result = await pullSettings(pin)
+    if (result.ok) {
+      localStorage.setItem('sync-pin', pin)
+      setSyncPinState(pin)
+      setSettingsUnlocked(true)
+      if (result.data) applySyncedSettings(result.data)
+    }
+    return result
+  }
+
+  const unlockWithPin = (pin: string): boolean => {
+    if (syncPin && pin === syncPin) {
+      setSettingsUnlocked(true)
+      return true
+    }
+    return false
+  }
+
+  const disconnectSync = () => {
+    localStorage.removeItem('sync-pin')
+    setSyncPinState('')
+    setSettingsUnlocked(true)
+  }
+
+  const syncToServer = (settings: SyncedSettings): Promise<SyncResult> => {
+    if (!syncPin) return Promise.resolve({ ok: false, message: 'ยังไม่ได้เชื่อมต่อ Sync' })
+    return pushSettings(syncPin, settings)
+  }
+
+  const pullFromServer = async (): Promise<SyncResult> => {
+    if (!syncPin) return { ok: false, message: 'ยังไม่ได้เชื่อมต่อ Sync' }
+    const result = await pullSettings(syncPin)
+    if (result.ok && result.data) applySyncedSettings(result.data)
+    return result
+  }
+
   const deleteHistoryItem = async (id: number) => {
     await db.history.delete(id)
     await refreshHistory()
@@ -114,6 +171,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         activeTab, setActiveTab,
         history, refreshHistory, deleteHistoryItem,
         toast, showToast, dismissToast,
+        syncPin, settingsUnlocked, connectSync, unlockWithPin, disconnectSync, syncToServer, pullFromServer,
       }}
     >
       {children}
