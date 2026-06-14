@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Key, Eye, EyeOff, CheckCircle2, ExternalLink, ImageIcon } from 'lucide-react'
+import { Key, Eye, EyeOff, CheckCircle2, XCircle, ExternalLink, ImageIcon, Wifi, Loader2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import type { ImageSource } from '../services/aiService'
+import {
+  testGoogleConnection,
+  testHfConnection,
+  testFalConnection,
+  testPexelsConnection,
+  type ConnectionTestResult,
+  type ImageSource,
+} from '../services/aiService'
 
 const IMAGE_SOURCE_OPTIONS: { value: ImageSource; label: string; desc: string }[] = [
   { value: 'auto', label: 'อัตโนมัติ', desc: 'Google AI → Hugging Face' },
@@ -9,6 +16,43 @@ const IMAGE_SOURCE_OPTIONS: { value: ImageSource; label: string; desc: string }[
   { value: 'huggingface', label: 'Hugging Face', desc: 'SD3.5 / FLUX เท่านั้น' },
   { value: 'pexels', label: 'Pexels', desc: 'ค้นหารูปจริง (Stock Photo)' },
 ]
+
+type TestState = { status: 'idle' | 'loading' | 'ok' | 'error'; message?: string }
+const IDLE_TEST: TestState = { status: 'idle' }
+
+function TestConnectionButton({ disabled, loading, onClick }: { disabled: boolean; loading: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || loading}
+      className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-slate-300 border border-slate-600 rounded-lg px-3 py-1.5 hover:border-indigo-500 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+    >
+      {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wifi className="w-3.5 h-3.5" />}
+      ทดสอบการเชื่อมต่อ
+    </button>
+  )
+}
+
+function TestConnectionStatus({ state }: { state: TestState }) {
+  if (state.status === 'ok') {
+    return (
+      <div className="flex items-start gap-1.5 mt-1.5 text-xs text-emerald-400">
+        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+        <span>{state.message}</span>
+      </div>
+    )
+  }
+  if (state.status === 'error') {
+    return (
+      <div className="flex items-start gap-1.5 mt-1.5 text-xs text-red-400">
+        <XCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+        <span>{state.message}</span>
+      </div>
+    )
+  }
+  return null
+}
 
 export function SettingsPage() {
   const { apiKey, saveApiKey, hfToken, saveHfToken, falKey, saveFalKey, pexelsKey, savePexelsKey, imageSource, saveImageSource, showToast } = useApp()
@@ -21,6 +65,10 @@ export function SettingsPage() {
   const [showHf, setShowHf] = useState(false)
   const [showFal, setShowFal] = useState(false)
   const [showPexels, setShowPexels] = useState(false)
+  const [testGoogle, setTestGoogle] = useState<TestState>(IDLE_TEST)
+  const [testHf, setTestHf] = useState<TestState>(IDLE_TEST)
+  const [testFal, setTestFal] = useState<TestState>(IDLE_TEST)
+  const [testPexels, setTestPexels] = useState<TestState>(IDLE_TEST)
 
   useEffect(() => {
     setInputKey(apiKey)
@@ -41,6 +89,16 @@ export function SettingsPage() {
     savePexelsKey(inputPexels)
     saveImageSource(inputImageSource)
     showToast('บันทึก Settings เรียบร้อยแล้ว', 'success')
+  }
+
+  const runTest = async (
+    value: string,
+    testFn: (v: string) => Promise<ConnectionTestResult>,
+    setState: (s: TestState) => void
+  ) => {
+    setState({ status: 'loading' })
+    const result = await testFn(value)
+    setState({ status: result.ok ? 'ok' : 'error', message: result.message })
   }
 
   return (
@@ -159,6 +217,13 @@ export function SettingsPage() {
           </div>
         )}
 
+        <TestConnectionButton
+          disabled={!inputKey}
+          loading={testGoogle.status === 'loading'}
+          onClick={() => runTest(inputKey, testGoogleConnection, setTestGoogle)}
+        />
+        <TestConnectionStatus state={testGoogle} />
+
         <div className="mt-3 bg-slate-800/70 rounded-xl p-3 text-xs text-slate-400 space-y-1">
           <p className="font-medium text-slate-300">วิธีรับ Google AI Studio Key</p>
           <ol className="list-decimal list-inside space-y-0.5 leading-relaxed">
@@ -207,6 +272,13 @@ export function SettingsPage() {
             <span>บันทึกแล้ว</span>
           </div>
         )}
+
+        <TestConnectionButton
+          disabled={!inputHf}
+          loading={testHf.status === 'loading'}
+          onClick={() => runTest(inputHf, testHfConnection, setTestHf)}
+        />
+        <TestConnectionStatus state={testHf} />
 
         <div className="mt-3 bg-slate-800/70 rounded-xl p-3 text-xs text-slate-400 space-y-1">
           <p className="font-medium text-slate-300">วิธีรับ Hugging Face Token (ฟรี)</p>
@@ -259,6 +331,13 @@ export function SettingsPage() {
           </div>
         )}
 
+        <TestConnectionButton
+          disabled={!inputFal}
+          loading={testFal.status === 'loading'}
+          onClick={() => runTest(inputFal, testFalConnection, setTestFal)}
+        />
+        <TestConnectionStatus state={testFal} />
+
         <div className="mt-3 bg-slate-800/70 rounded-xl p-3 text-xs text-slate-400 space-y-1">
           <p className="font-medium text-slate-300">วิธีรับ Fal.ai Key (เริ่มต้น $10)</p>
           <ol className="list-decimal list-inside space-y-0.5 leading-relaxed">
@@ -309,6 +388,13 @@ export function SettingsPage() {
             <span>บันทึกแล้ว</span>
           </div>
         )}
+
+        <TestConnectionButton
+          disabled={!inputPexels}
+          loading={testPexels.status === 'loading'}
+          onClick={() => runTest(inputPexels, testPexelsConnection, setTestPexels)}
+        />
+        <TestConnectionStatus state={testPexels} />
 
         <div className="mt-3 bg-slate-800/70 rounded-xl p-3 text-xs text-slate-400 space-y-1">
           <p className="font-medium text-slate-300">วิธีรับ Pexels API Key (ฟรี)</p>

@@ -408,3 +408,73 @@ export async function generateVideo(
 
   throw new Error('Veo: หมดเวลารอผลลัพธ์ (120 วินาที) กรุณาลองสร้างวิดีโออีกครั้ง')
 }
+
+// ---------------------------------------------------------------------------
+// Connection testing (API Setting page)
+// ---------------------------------------------------------------------------
+
+export interface ConnectionTestResult {
+  ok: boolean
+  message: string
+}
+
+export async function testGoogleConnection(apiKey: string): Promise<ConnectionTestResult> {
+  if (!apiKey) return { ok: false, message: 'กรุณากรอก API Key ก่อนทดสอบ' }
+  try {
+    const res = await fetch(`${GEMINI_BASE}/models?key=${apiKey}`)
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}))
+      const msg: string = json?.error?.message ?? `HTTP ${res.status}`
+      return { ok: false, message: `Google AI: ${msg}` }
+    }
+    return { ok: true, message: 'เชื่อมต่อ Google AI Studio สำเร็จ' }
+  } catch {
+    return { ok: false, message: 'Google AI: เชื่อมต่อไม่สำเร็จ (เครือข่ายขัดข้อง)' }
+  }
+}
+
+export async function testHfConnection(hfToken: string): Promise<ConnectionTestResult> {
+  if (!hfToken) return { ok: false, message: 'กรุณากรอก Token ก่อนทดสอบ' }
+  try {
+    const res = await fetch(HF_IMAGE_MODEL_FLUX, {
+      headers: { Authorization: `Bearer ${hfToken}` },
+    })
+    if (res.status === 401 || res.status === 403) {
+      return { ok: false, message: 'Hugging Face: Token ไม่ถูกต้องหรือหมดอายุ' }
+    }
+    return { ok: true, message: 'เชื่อมต่อ Hugging Face สำเร็จ' }
+  } catch {
+    return { ok: false, message: 'Hugging Face: เชื่อมต่อไม่สำเร็จ (เครือข่ายขัดข้อง)' }
+  }
+}
+
+export async function testFalConnection(falKey: string): Promise<ConnectionTestResult> {
+  if (!falKey) return { ok: false, message: 'กรุณากรอก Key ก่อนทดสอบ' }
+  try {
+    const res = await fetch(
+      `${FAL_BASE}/${FAL_VIDEO_MODEL}/requests/00000000-0000-0000-0000-000000000000/status`,
+      { headers: { Authorization: `Key ${falKey}` } }
+    )
+    if (res.status === 401 || res.status === 403) {
+      return { ok: false, message: 'Fal.ai: Key ไม่ถูกต้องหรือหมดอายุ' }
+    }
+    return { ok: true, message: 'เชื่อมต่อ Fal.ai สำเร็จ' }
+  } catch {
+    return { ok: false, message: 'Fal.ai: เชื่อมต่อไม่สำเร็จ (เครือข่ายขัดข้อง)' }
+  }
+}
+
+export async function testPexelsConnection(pexelsKey: string): Promise<ConnectionTestResult> {
+  if (!pexelsKey) return { ok: false, message: 'กรุณากรอก Key ก่อนทดสอบ' }
+  try {
+    const res = await fetch(`${PEXELS_BASE}/v1/search?query=test&per_page=1`, {
+      headers: { Authorization: pexelsKey },
+    })
+    if (res.status === 401 || res.status === 403) {
+      return { ok: false, message: 'Pexels: API Key ไม่ถูกต้อง' }
+    }
+    return { ok: true, message: 'เชื่อมต่อ Pexels สำเร็จ' }
+  } catch {
+    return { ok: false, message: 'Pexels: เชื่อมต่อไม่สำเร็จ (เครือข่ายขัดข้อง)' }
+  }
+}
