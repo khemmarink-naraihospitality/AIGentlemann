@@ -85,6 +85,9 @@ export function SettingsPage() {
     setInputFal(falKey)
     setInputPexels(pexelsKey)
     setInputImageSource(imageSource)
+  }, [apiKey, hfToken, falKey, pexelsKey, imageSource])
+
+  useEffect(() => {
     setShowKey(false)
     setShowHf(false)
     setShowFal(false)
