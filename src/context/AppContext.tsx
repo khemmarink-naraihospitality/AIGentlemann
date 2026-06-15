@@ -36,8 +36,10 @@ interface AppContextValue {
   showToast: (message: string, type: Toast['type']) => void
   dismissToast: () => void
   syncPin: string
+  syncUsername: string
   settingsUnlocked: boolean
-  connectSync: (pin: string) => Promise<SyncResult>
+  connectSync: (pin: string, username: string) => Promise<SyncResult>
+  changeSyncUsername: (username: string) => Promise<SyncResult>
   unlockWithPin: (pin: string) => boolean
   disconnectSync: () => void
   syncToServer: (settings: SyncedSettings) => Promise<SyncResult>
@@ -59,6 +61,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [toast, setToast] = useState<Toast | null>(null)
   const [syncPin, setSyncPinState] = useState(() => localStorage.getItem('sync-pin') ?? '')
+  const [syncUsername, setSyncUsernameState] = useState(() => localStorage.getItem('sync-username') ?? '')
   const [settingsUnlocked, setSettingsUnlocked] = useState(() => !localStorage.getItem('sync-pin'))
 
   const refreshHistory = useCallback(async () => {
@@ -107,12 +110,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const connectSync = async (pin: string): Promise<SyncResult> => {
-    const result = await pullSettings(pin)
+  const connectSync = async (pin: string, username: string): Promise<SyncResult> => {
+    const trimmedUsername = username.trim().toLowerCase()
+    const result = await pullSettings(pin, trimmedUsername)
     if (result.ok) {
       localStorage.setItem('sync-pin', pin)
+      localStorage.setItem('sync-username', trimmedUsername)
       setSyncPinState(pin)
+      setSyncUsernameState(trimmedUsername)
       setSettingsUnlocked(true)
+      if (result.data) applySyncedSettings(result.data)
+    }
+    return result
+  }
+
+  const changeSyncUsername = async (username: string): Promise<SyncResult> => {
+    if (!syncPin) return { ok: false, message: 'ยังไม่ได้เชื่อมต่อ Sync' }
+    const trimmedUsername = username.trim().toLowerCase()
+    const result = await pullSettings(syncPin, trimmedUsername)
+    if (result.ok) {
+      localStorage.setItem('sync-username', trimmedUsername)
+      setSyncUsernameState(trimmedUsername)
       if (result.data) applySyncedSettings(result.data)
     }
     return result
@@ -128,18 +146,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const disconnectSync = () => {
     localStorage.removeItem('sync-pin')
+    localStorage.removeItem('sync-username')
     setSyncPinState('')
+    setSyncUsernameState('')
     setSettingsUnlocked(true)
   }
 
   const syncToServer = (settings: SyncedSettings): Promise<SyncResult> => {
     if (!syncPin) return Promise.resolve({ ok: false, message: 'ยังไม่ได้เชื่อมต่อ Sync' })
-    return pushSettings(syncPin, settings)
+    return pushSettings(syncPin, settings, syncUsername)
   }
 
   const pullFromServer = async (): Promise<SyncResult> => {
     if (!syncPin) return { ok: false, message: 'ยังไม่ได้เชื่อมต่อ Sync' }
-    const result = await pullSettings(syncPin)
+    const result = await pullSettings(syncPin, syncUsername)
     if (result.ok && result.data) applySyncedSettings(result.data)
     return result
   }
@@ -171,7 +191,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         activeTab, setActiveTab,
         history, refreshHistory, deleteHistoryItem,
         toast, showToast, dismissToast,
-        syncPin, settingsUnlocked, connectSync, unlockWithPin, disconnectSync, syncToServer, pullFromServer,
+        syncPin, syncUsername, settingsUnlocked, connectSync, changeSyncUsername, unlockWithPin, disconnectSync, syncToServer, pullFromServer,
       }}
     >
       {children}

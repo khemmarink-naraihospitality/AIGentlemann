@@ -58,7 +58,7 @@ export function SettingsPage() {
   const {
     apiKey, saveApiKey, hfToken, saveHfToken, falKey, saveFalKey, pexelsKey, savePexelsKey,
     imageSource, saveImageSource, showToast,
-    syncPin, settingsUnlocked, connectSync, unlockWithPin, disconnectSync, syncToServer, pullFromServer,
+    syncPin, syncUsername, settingsUnlocked, connectSync, changeSyncUsername, unlockWithPin, disconnectSync, syncToServer, pullFromServer,
   } = useApp()
   const [inputKey, setInputKey] = useState(apiKey)
   const [inputHf, setInputHf] = useState(hfToken)
@@ -76,8 +76,11 @@ export function SettingsPage() {
   const [pinInput, setPinInput] = useState('')
   const [unlockState, setUnlockState] = useState<TestState>(IDLE_TEST)
   const [syncPinInput, setSyncPinInput] = useState('')
+  const [syncUsernameInput, setSyncUsernameInput] = useState('')
   const [connectState, setConnectState] = useState<TestState>(IDLE_TEST)
   const [pullState, setPullState] = useState<TestState>(IDLE_TEST)
+  const [changeUsernameInput, setChangeUsernameInput] = useState(syncUsername)
+  const [changeUserState, setChangeUserState] = useState<TestState>(IDLE_TEST)
 
   useEffect(() => {
     setInputKey(apiKey)
@@ -93,6 +96,10 @@ export function SettingsPage() {
     setShowFal(false)
     setShowPexels(false)
   }, [])
+
+  useEffect(() => {
+    setChangeUsernameInput(syncUsername)
+  }, [syncUsername])
 
   const handleSave = async () => {
     saveApiKey(inputKey)
@@ -138,9 +145,12 @@ export function SettingsPage() {
 
   const handleConnectSync = async () => {
     setConnectState({ status: 'loading' })
-    const result = await connectSync(syncPinInput)
+    const result = await connectSync(syncPinInput, syncUsernameInput)
     setConnectState({ status: result.ok ? 'ok' : 'error', message: result.message })
-    if (result.ok) setSyncPinInput('')
+    if (result.ok) {
+      setSyncPinInput('')
+      setSyncUsernameInput('')
+    }
   }
 
   const handlePullFromServer = async () => {
@@ -149,10 +159,17 @@ export function SettingsPage() {
     setPullState({ status: result.ok ? 'ok' : 'error', message: result.message })
   }
 
+  const handleChangeUsername = async () => {
+    setChangeUserState({ status: 'loading' })
+    const result = await changeSyncUsername(changeUsernameInput)
+    setChangeUserState({ status: result.ok ? 'ok' : 'error', message: result.message })
+  }
+
   const handleDisconnectSync = () => {
     disconnectSync()
     setConnectState(IDLE_TEST)
     setPullState(IDLE_TEST)
+    setChangeUserState(IDLE_TEST)
   }
 
   if (!settingsUnlocked) {
@@ -515,6 +532,29 @@ export function SettingsPage() {
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>เชื่อมต่อ Sync แล้ว — หน้านี้ถูกล็อกด้วย PIN</span>
             </div>
+            <p className="text-xs text-slate-500">
+              ชุดข้อมูลปัจจุบัน: <span className="text-slate-300 font-medium">{syncUsername || 'กลาง (ไม่ระบุชื่อผู้ใช้)'}</span>
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={changeUsernameInput}
+                onChange={e => setChangeUsernameInput(e.target.value)}
+                placeholder="ชื่อผู้ใช้ (เว้นว่าง = ชุดข้อมูลกลาง)"
+                autoComplete="off"
+                className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 placeholder-slate-500 text-xs focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={handleChangeUsername}
+                disabled={changeUserState.status === 'loading' || changeUsernameInput.trim().toLowerCase() === syncUsername}
+                className="inline-flex items-center justify-center gap-1.5 text-xs font-medium text-slate-300 border border-slate-600 rounded-lg px-3 py-2 hover:border-purple-500 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {changeUserState.status === 'loading' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                เปลี่ยน
+              </button>
+            </div>
+            <TestConnectionStatus state={changeUserState} />
             <div className="flex gap-2">
               <button
                 type="button"
@@ -539,7 +579,7 @@ export function SettingsPage() {
         ) : (
           <div className="space-y-2">
             <p className="text-xs text-slate-500">
-              ตั้งค่า PIN เดียวกันบนทุกอุปกรณ์ เพื่อให้ API Key ซิงค์ถึงกัน และล็อกหน้านี้ไว้ไม่ให้คนอื่นเข้าดู/แก้ไข
+              ตั้งค่า PIN เดียวกันบนทุกอุปกรณ์เพื่อล็อกหน้านี้ไว้ไม่ให้คนอื่นเข้าดู/แก้ไข จากนั้นตั้ง "ชื่อผู้ใช้" ของตัวเอง เพื่อให้ API Key ของคุณเก็บแยกจากคนอื่นที่ใช้ PIN เดียวกัน (เว้นว่างได้ถ้าต้องการใช้ชุดข้อมูลกลางร่วมกัน)
             </p>
             <div className="relative">
               <input
@@ -547,6 +587,16 @@ export function SettingsPage() {
                 value={syncPinInput}
                 onChange={e => setSyncPinInput(e.target.value)}
                 placeholder="ตั้ง/กรอก PIN สำหรับ Sync"
+                autoComplete="off"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50 transition-colors"
+              />
+            </div>
+            <div className="relative">
+              <input
+                type="text"
+                value={syncUsernameInput}
+                onChange={e => setSyncUsernameInput(e.target.value)}
+                placeholder="ชื่อผู้ใช้ของคุณ เช่น nara (เว้นว่าง = ชุดข้อมูลกลาง)"
                 autoComplete="off"
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50 transition-colors"
               />
@@ -575,7 +625,7 @@ export function SettingsPage() {
 
       <p className="text-center text-xs text-slate-500">
         {syncPin
-          ? 'Key และ Token จะถูกเก็บใน Browser และซิงค์ขึ้น Server ด้วย PIN ของคุณ'
+          ? `Key และ Token จะถูกเก็บใน Browser และซิงค์ขึ้น Server (ชุดข้อมูล: ${syncUsername || 'กลาง'})`
           : 'Key และ Token จะถูกเก็บใน Browser เท่านั้น ไม่มีการส่งข้อมูลไปยัง Server ใดๆ'}
       </p>
     </div>

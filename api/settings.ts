@@ -2,7 +2,8 @@ import { Redis } from '@upstash/redis'
 
 export const config = { runtime: 'edge' }
 
-const SETTINGS_KEY = 'aigentlemann:settings'
+const SETTINGS_KEY_PREFIX = 'aigentlemann:settings'
+const MAX_USERNAME_LENGTH = 64
 
 function getRedis(): Redis | null {
   const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL
@@ -35,8 +36,14 @@ export default async function handler(request: Request): Promise<Response> {
     return json({ error: 'ยังไม่ได้เชื่อมต่อ Redis Database บน Vercel' }, 503)
   }
 
+  const username = (new URL(request.url).searchParams.get('user') ?? '').trim().toLowerCase()
+  if (username.length > MAX_USERNAME_LENGTH) {
+    return json({ error: 'ชื่อผู้ใช้ยาวเกินไป' }, 400)
+  }
+  const settingsKey = username ? `${SETTINGS_KEY_PREFIX}:${username}` : SETTINGS_KEY_PREFIX
+
   if (request.method === 'GET') {
-    const data = await redis.get(SETTINGS_KEY)
+    const data = await redis.get(settingsKey)
     return json(data ?? {})
   }
 
@@ -45,7 +52,7 @@ export default async function handler(request: Request): Promise<Response> {
     if (!body || typeof body !== 'object') {
       return json({ error: 'รูปแบบข้อมูลไม่ถูกต้อง' }, 400)
     }
-    await redis.set(SETTINGS_KEY, body)
+    await redis.set(settingsKey, body)
     return json({ ok: true })
   }
 

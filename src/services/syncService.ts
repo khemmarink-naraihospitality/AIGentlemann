@@ -19,9 +19,14 @@ async function parseErrorMessage(res: Response): Promise<string> {
   return json?.error ?? `เกิดข้อผิดพลาด (HTTP ${res.status})`
 }
 
-export async function pullSettings(pin: string): Promise<SyncResult> {
+function settingsUrl(username: string): string {
+  const trimmed = username.trim()
+  return trimmed ? `/api/settings?user=${encodeURIComponent(trimmed)}` : '/api/settings'
+}
+
+export async function pullSettings(pin: string, username = ''): Promise<SyncResult> {
   try {
-    const res = await fetch('/api/settings', {
+    const res = await fetch(settingsUrl(username), {
       headers: { Authorization: `Bearer ${pin}` },
     })
     if (!res.ok) return { ok: false, message: await parseErrorMessage(res) }
@@ -32,9 +37,9 @@ export async function pullSettings(pin: string): Promise<SyncResult> {
   }
 }
 
-export async function pushSettings(pin: string, settings: SyncedSettings): Promise<SyncResult> {
+export async function pushSettings(pin: string, settings: SyncedSettings, username = ''): Promise<SyncResult> {
   try {
-    const res = await fetch('/api/settings', {
+    const res = await fetch(settingsUrl(username), {
       method: 'POST',
       headers: { Authorization: `Bearer ${pin}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
