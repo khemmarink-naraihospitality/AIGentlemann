@@ -3,7 +3,7 @@ import { Redis } from '@upstash/redis'
 export const config = { runtime: 'edge' }
 
 const SETTINGS_KEY_PREFIX = 'aigentlemann:settings'
-const MAX_USERNAME_LENGTH = 64
+const MAX_PIN_LENGTH = 64
 
 function getRedis(): Redis | null {
   const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL
@@ -20,15 +20,13 @@ function json(data: unknown, status = 200): Response {
 }
 
 export default async function handler(request: Request): Promise<Response> {
-  const expectedPin = process.env.SETTINGS_PIN
-  if (!expectedPin) {
-    return json({ error: 'ยังไม่ได้ตั้งค่า SETTINGS_PIN บน Server' }, 503)
-  }
-
   const auth = request.headers.get('authorization') ?? ''
-  const pin = auth.replace(/^Bearer\s+/i, '')
-  if (!pin || pin !== expectedPin) {
-    return json({ error: 'PIN ไม่ถูกต้อง' }, 401)
+  const pin = auth.replace(/^Bearer\s+/i, '').trim()
+  if (!pin) {
+    return json({ error: 'กรุณาระบุ PIN' }, 401)
+  }
+  if (pin.length > MAX_PIN_LENGTH) {
+    return json({ error: 'PIN ยาวเกินไป' }, 400)
   }
 
   const redis = getRedis()
@@ -36,11 +34,7 @@ export default async function handler(request: Request): Promise<Response> {
     return json({ error: 'ยังไม่ได้เชื่อมต่อ Redis Database บน Vercel' }, 503)
   }
 
-  const username = (new URL(request.url).searchParams.get('user') ?? '').trim().toLowerCase()
-  if (username.length > MAX_USERNAME_LENGTH) {
-    return json({ error: 'ชื่อผู้ใช้ยาวเกินไป' }, 400)
-  }
-  const settingsKey = username ? `${SETTINGS_KEY_PREFIX}:${username}` : SETTINGS_KEY_PREFIX
+  const settingsKey = `${SETTINGS_KEY_PREFIX}:${pin}`
 
   if (request.method === 'GET') {
     const data = await redis.get(settingsKey)

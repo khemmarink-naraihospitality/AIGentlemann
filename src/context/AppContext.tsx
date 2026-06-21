@@ -35,14 +35,11 @@ interface AppContextValue {
   toast: Toast | null
   showToast: (message: string, type: Toast['type']) => void
   dismissToast: () => void
-  syncPin: string
-  syncUsername: string
-  settingsUnlocked: boolean
-  connectSync: (pin: string, username: string) => Promise<SyncResult>
-  changeSyncUsername: (username: string) => Promise<SyncResult>
-  unlockWithPin: (pin: string) => boolean
-  disconnectSync: () => void
-  syncToServer: (settings: SyncedSettings) => Promise<SyncResult>
+  loginPin: string
+  isLoggedIn: boolean
+  login: (pin: string) => Promise<SyncResult>
+  logout: () => void
+  syncNow: (settings: SyncedSettings) => Promise<SyncResult>
   pullFromServer: () => Promise<SyncResult>
 }
 
@@ -60,9 +57,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activeTab, setActiveTab] = useState<'create' | 'settings' | 'history'>('create')
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [toast, setToast] = useState<Toast | null>(null)
-  const [syncPin, setSyncPinState] = useState(() => localStorage.getItem('sync-pin') ?? '')
-  const [syncUsername, setSyncUsernameState] = useState(() => localStorage.getItem('sync-username') ?? '')
-  const [settingsUnlocked, setSettingsUnlocked] = useState(() => !localStorage.getItem('sync-pin'))
+  const [loginPin, setLoginPinState] = useState(() => localStorage.getItem('login-pin') ?? '')
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('login-pin'))
 
   const refreshHistory = useCallback(async () => {
     const items = await db.history.orderBy('createdAt').reverse().toArray()
@@ -110,56 +106,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const connectSync = async (pin: string, username: string): Promise<SyncResult> => {
-    const trimmedUsername = username.trim().toLowerCase()
-    const result = await pullSettings(pin, trimmedUsername)
+  useEffect(() => {
+    if (!loginPin) return
+    pullSettings(loginPin).then(result => {
+      if (result.ok && result.data) applySyncedSettings(result.data)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const login = async (pin: string): Promise<SyncResult> => {
+    const trimmed = pin.trim()
+    const result = await pullSettings(trimmed)
     if (result.ok) {
-      localStorage.setItem('sync-pin', pin)
-      localStorage.setItem('sync-username', trimmedUsername)
-      setSyncPinState(pin)
-      setSyncUsernameState(trimmedUsername)
-      setSettingsUnlocked(true)
+      localStorage.setItem('login-pin', trimmed)
+      setLoginPinState(trimmed)
+      setIsLoggedIn(true)
       if (result.data) applySyncedSettings(result.data)
     }
     return result
   }
 
-  const changeSyncUsername = async (username: string): Promise<SyncResult> => {
-    if (!syncPin) return { ok: false, message: 'ยังไม่ได้เชื่อมต่อ Sync' }
-    const trimmedUsername = username.trim().toLowerCase()
-    const result = await pullSettings(syncPin, trimmedUsername)
-    if (result.ok) {
-      localStorage.setItem('sync-username', trimmedUsername)
-      setSyncUsernameState(trimmedUsername)
-      if (result.data) applySyncedSettings(result.data)
-    }
-    return result
+  const logout = () => {
+    localStorage.removeItem('login-pin')
+    setLoginPinState('')
+    setIsLoggedIn(false)
   }
 
-  const unlockWithPin = (pin: string): boolean => {
-    if (syncPin && pin === syncPin) {
-      setSettingsUnlocked(true)
-      return true
-    }
-    return false
-  }
-
-  const disconnectSync = () => {
-    localStorage.removeItem('sync-pin')
-    localStorage.removeItem('sync-username')
-    setSyncPinState('')
-    setSyncUsernameState('')
-    setSettingsUnlocked(true)
-  }
-
-  const syncToServer = (settings: SyncedSettings): Promise<SyncResult> => {
-    if (!syncPin) return Promise.resolve({ ok: false, message: 'ยังไม่ได้เชื่อมต่อ Sync' })
-    return pushSettings(syncPin, settings, syncUsername)
+  const syncNow = (settings: SyncedSettings): Promise<SyncResult> => {
+    if (!loginPin) return Promise.resolve({ ok: false, message: 'ยังไม่ได้เข้าสู่ระบบ' })
+    return pushSettings(loginPin, settings)
   }
 
   const pullFromServer = async (): Promise<SyncResult> => {
-    if (!syncPin) return { ok: false, message: 'ยังไม่ได้เชื่อมต่อ Sync' }
-    const result = await pullSettings(syncPin, syncUsername)
+    if (!loginPin) return { ok: false, message: 'ยังไม่ได้เข้าสู่ระบบ' }
+    const result = await pullSettings(loginPin)
     if (result.ok && result.data) applySyncedSettings(result.data)
     return result
   }
@@ -191,7 +171,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         activeTab, setActiveTab,
         history, refreshHistory, deleteHistoryItem,
         toast, showToast, dismissToast,
-        syncPin, syncUsername, settingsUnlocked, connectSync, changeSyncUsername, unlockWithPin, disconnectSync, syncToServer, pullFromServer,
+        loginPin, isLoggedIn, login, logout, syncNow, pullFromServer,
       }}
     >
       {children}

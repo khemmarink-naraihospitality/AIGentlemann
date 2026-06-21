@@ -4,10 +4,15 @@ import { TabBar } from './components/TabBar'
 import { InputForm } from './components/InputForm'
 import { HistoryGrid } from './components/HistoryGrid'
 import { SettingsPage } from './components/SettingsPage'
+import { LoginPage } from './components/LoginPage'
 import { Toast } from './components/Toast'
 
 function AppContent() {
-  const { activeTab } = useApp()
+  const { activeTab, isLoggedIn } = useApp()
+
+  if (!isLoggedIn) {
+    return <LoginPage />
+  }
 
   return (
     <div className="min-h-svh bg-slate-950">

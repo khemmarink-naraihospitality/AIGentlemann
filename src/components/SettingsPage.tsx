@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Key, Eye, EyeOff, CheckCircle2, XCircle, ExternalLink, ImageIcon, Wifi, Loader2, Lock, RefreshCw, LogOut } from 'lucide-react'
+import { Key, Eye, EyeOff, CheckCircle2, XCircle, ExternalLink, ImageIcon, Wifi, Loader2, RefreshCw, LogOut } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import {
   testGoogleConnection,
@@ -58,7 +58,7 @@ export function SettingsPage() {
   const {
     apiKey, saveApiKey, hfToken, saveHfToken, falKey, saveFalKey, pexelsKey, savePexelsKey,
     imageSource, saveImageSource, showToast,
-    syncPin, syncUsername, settingsUnlocked, connectSync, changeSyncUsername, unlockWithPin, disconnectSync, syncToServer, pullFromServer,
+    loginPin, logout, syncNow, pullFromServer,
   } = useApp()
   const [inputKey, setInputKey] = useState(apiKey)
   const [inputHf, setInputHf] = useState(hfToken)
@@ -73,14 +73,7 @@ export function SettingsPage() {
   const [testHf, setTestHf] = useState<TestState>(IDLE_TEST)
   const [testFal, setTestFal] = useState<TestState>(IDLE_TEST)
   const [testPexels, setTestPexels] = useState<TestState>(IDLE_TEST)
-  const [pinInput, setPinInput] = useState('')
-  const [unlockState, setUnlockState] = useState<TestState>(IDLE_TEST)
-  const [syncPinInput, setSyncPinInput] = useState('')
-  const [syncUsernameInput, setSyncUsernameInput] = useState('')
-  const [connectState, setConnectState] = useState<TestState>(IDLE_TEST)
   const [pullState, setPullState] = useState<TestState>(IDLE_TEST)
-  const [changeUsernameInput, setChangeUsernameInput] = useState(syncUsername)
-  const [changeUserState, setChangeUserState] = useState<TestState>(IDLE_TEST)
 
   useEffect(() => {
     setInputKey(apiKey)
@@ -97,10 +90,6 @@ export function SettingsPage() {
     setShowPexels(false)
   }, [])
 
-  useEffect(() => {
-    setChangeUsernameInput(syncUsername)
-  }, [syncUsername])
-
   const handleSave = async () => {
     saveApiKey(inputKey)
     saveHfToken(inputHf)
@@ -109,17 +98,15 @@ export function SettingsPage() {
     saveImageSource(inputImageSource)
     showToast('บันทึก Settings เรียบร้อยแล้ว', 'success')
 
-    if (syncPin) {
-      const result = await syncToServer({
-        apiKey: inputKey,
-        hfToken: inputHf,
-        falKey: inputFal,
-        pexelsKey: inputPexels,
-        imageSource: inputImageSource,
-      })
-      if (!result.ok) {
-        showToast(`ซิงค์ขึ้น Server ไม่สำเร็จ: ${result.message}`, 'error')
-      }
+    const result = await syncNow({
+      apiKey: inputKey,
+      hfToken: inputHf,
+      falKey: inputFal,
+      pexelsKey: inputPexels,
+      imageSource: inputImageSource,
+    })
+    if (!result.ok) {
+      showToast(`ซิงค์ขึ้น Server ไม่สำเร็จ: ${result.message}`, 'error')
     }
   }
 
@@ -133,78 +120,10 @@ export function SettingsPage() {
     setState({ status: result.ok ? 'ok' : 'error', message: result.message })
   }
 
-  const handleUnlock = () => {
-    const ok = unlockWithPin(pinInput)
-    if (ok) {
-      setPinInput('')
-      setUnlockState(IDLE_TEST)
-    } else {
-      setUnlockState({ status: 'error', message: 'PIN ไม่ถูกต้อง' })
-    }
-  }
-
-  const handleConnectSync = async () => {
-    setConnectState({ status: 'loading' })
-    const result = await connectSync(syncPinInput, syncUsernameInput)
-    setConnectState({ status: result.ok ? 'ok' : 'error', message: result.message })
-    if (result.ok) {
-      setSyncPinInput('')
-      setSyncUsernameInput('')
-    }
-  }
-
   const handlePullFromServer = async () => {
     setPullState({ status: 'loading' })
     const result = await pullFromServer()
     setPullState({ status: result.ok ? 'ok' : 'error', message: result.message })
-  }
-
-  const handleChangeUsername = async () => {
-    setChangeUserState({ status: 'loading' })
-    const result = await changeSyncUsername(changeUsernameInput)
-    setChangeUserState({ status: result.ok ? 'ok' : 'error', message: result.message })
-  }
-
-  const handleDisconnectSync = () => {
-    disconnectSync()
-    setConnectState(IDLE_TEST)
-    setPullState(IDLE_TEST)
-    setChangeUserState(IDLE_TEST)
-  }
-
-  if (!settingsUnlocked) {
-    return (
-      <div className="space-y-4">
-        <h2 className="text-white font-bold text-lg">API Setting</h2>
-        <div className="bg-slate-800/70 rounded-xl p-4 space-y-3">
-          <div className="flex items-center gap-2 text-slate-200">
-            <Lock className="w-4 h-4 text-indigo-400" />
-            <p className="text-sm font-medium">กรอก PIN เพื่อเข้าหน้า Settings</p>
-          </div>
-          <p className="text-xs text-slate-500">
-            หน้านี้ถูกล็อกไว้ด้วย PIN ที่ตั้งค่าไว้สำหรับซิงค์ข้ามอุปกรณ์
-          </p>
-          <input
-            type="password"
-            value={pinInput}
-            onChange={e => setPinInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleUnlock()}
-            placeholder="PIN"
-            autoComplete="off"
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-colors"
-          />
-          <button
-            type="button"
-            onClick={handleUnlock}
-            disabled={!pinInput}
-            className="w-full h-11 rounded-xl font-semibold text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            ปลดล็อก
-          </button>
-          <TestConnectionStatus state={unlockState} />
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -519,100 +438,37 @@ export function SettingsPage() {
       {/* Divider */}
       <div className="border-t border-slate-700/60" />
 
-      {/* ── Sync ข้ามอุปกรณ์ ── */}
+      {/* ── บัญชี / PIN ── */}
       <div>
         <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
           <RefreshCw className="w-4 h-4 text-purple-400" />
-          ซิงค์ข้ามเบราว์เซอร์ / อุปกรณ์
+          บัญชีของคุณ
         </label>
-
-        {syncPin ? (
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5 text-xs text-emerald-400">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>เชื่อมต่อ Sync แล้ว — หน้านี้ถูกล็อกด้วย PIN</span>
-            </div>
-            <p className="text-xs text-slate-500">
-              ชุดข้อมูลปัจจุบัน: <span className="text-slate-300 font-medium">{syncUsername || 'กลาง (ไม่ระบุชื่อผู้ใช้)'}</span>
-            </p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={changeUsernameInput}
-                onChange={e => setChangeUsernameInput(e.target.value)}
-                placeholder="ชื่อผู้ใช้ (เว้นว่าง = ชุดข้อมูลกลาง)"
-                autoComplete="off"
-                className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 placeholder-slate-500 text-xs focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50 transition-colors"
-              />
-              <button
-                type="button"
-                onClick={handleChangeUsername}
-                disabled={changeUserState.status === 'loading' || changeUsernameInput.trim().toLowerCase() === syncUsername}
-                className="inline-flex items-center justify-center gap-1.5 text-xs font-medium text-slate-300 border border-slate-600 rounded-lg px-3 py-2 hover:border-purple-500 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                {changeUserState.status === 'loading' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                เปลี่ยน
-              </button>
-            </div>
-            <TestConnectionStatus state={changeUserState} />
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handlePullFromServer}
-                disabled={pullState.status === 'loading'}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-medium text-slate-300 border border-slate-600 rounded-lg px-3 py-2 hover:border-purple-500 hover:text-white disabled:opacity-40 transition-colors"
-              >
-                {pullState.status === 'loading' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                ดึงค่าล่าสุดจาก Server
-              </button>
-              <button
-                type="button"
-                onClick={handleDisconnectSync}
-                className="inline-flex items-center justify-center gap-1.5 text-xs font-medium text-slate-300 border border-slate-600 rounded-lg px-3 py-2 hover:border-red-500 hover:text-white transition-colors"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                ยกเลิก
-              </button>
-            </div>
-            <TestConnectionStatus state={pullState} />
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-xs text-slate-500">
-              ตั้งค่า PIN เดียวกันบนทุกอุปกรณ์เพื่อล็อกหน้านี้ไว้ไม่ให้คนอื่นเข้าดู/แก้ไข จากนั้นตั้ง "ชื่อผู้ใช้" ของตัวเอง เพื่อให้ API Key ของคุณเก็บแยกจากคนอื่นที่ใช้ PIN เดียวกัน (เว้นว่างได้ถ้าต้องการใช้ชุดข้อมูลกลางร่วมกัน)
-            </p>
-            <div className="relative">
-              <input
-                type="password"
-                value={syncPinInput}
-                onChange={e => setSyncPinInput(e.target.value)}
-                placeholder="ตั้ง/กรอก PIN สำหรับ Sync"
-                autoComplete="off"
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50 transition-colors"
-              />
-            </div>
-            <div className="relative">
-              <input
-                type="text"
-                value={syncUsernameInput}
-                onChange={e => setSyncUsernameInput(e.target.value)}
-                placeholder="ชื่อผู้ใช้ของคุณ เช่น nara (เว้นว่าง = ชุดข้อมูลกลาง)"
-                autoComplete="off"
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50 transition-colors"
-              />
-            </div>
+        <div className="space-y-2">
+          <p className="text-xs text-slate-500">
+            เข้าสู่ระบบด้วย PIN: <span className="text-slate-300 font-medium">{'•'.repeat(loginPin.length)}</span> — Key และ Token ทั้งหมดจะซิงค์ขึ้น Server ด้วย PIN นี้โดยอัตโนมัติ
+          </p>
+          <div className="flex gap-2">
             <button
               type="button"
-              onClick={handleConnectSync}
-              disabled={!syncPinInput || connectState.status === 'loading'}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300 border border-slate-600 rounded-lg px-3 py-1.5 hover:border-purple-500 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              onClick={handlePullFromServer}
+              disabled={pullState.status === 'loading'}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-medium text-slate-300 border border-slate-600 rounded-lg px-3 py-2 hover:border-purple-500 hover:text-white disabled:opacity-40 transition-colors"
             >
-              {connectState.status === 'loading' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-              เชื่อมต่อ Sync
+              {pullState.status === 'loading' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              ดึงค่าล่าสุดจาก Server
             </button>
-            <TestConnectionStatus state={connectState} />
+            <button
+              type="button"
+              onClick={logout}
+              className="inline-flex items-center justify-center gap-1.5 text-xs font-medium text-slate-300 border border-slate-600 rounded-lg px-3 py-2 hover:border-red-500 hover:text-white transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              ออกจากระบบ
+            </button>
           </div>
-        )}
+          <TestConnectionStatus state={pullState} />
+        </div>
       </div>
 
       {/* Save button */}
@@ -624,9 +480,7 @@ export function SettingsPage() {
       </button>
 
       <p className="text-center text-xs text-slate-500">
-        {syncPin
-          ? `Key และ Token จะถูกเก็บใน Browser และซิงค์ขึ้น Server (ชุดข้อมูล: ${syncUsername || 'กลาง'})`
-          : 'Key และ Token จะถูกเก็บใน Browser เท่านั้น ไม่มีการส่งข้อมูลไปยัง Server ใดๆ'}
+        Key และ Token จะถูกเก็บใน Browser และซิงค์ขึ้น Server ด้วย PIN ของคุณ
       </p>
     </div>
   )
