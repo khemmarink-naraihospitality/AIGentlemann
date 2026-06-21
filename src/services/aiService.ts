@@ -8,7 +8,7 @@ const FAL_VIDEO_MODEL = 'fal-ai/wan/v2.1/1.3b/text-to-video'
 const PEXELS_BASE = '/api/pexels'
 
 export interface GenerateParams {
-  backgroundImage?: string  // base64 data URL
+  productImage?: string     // base64 data URL
   personImage?: string      // base64 data URL
   description?: string
   speak?: string
@@ -72,22 +72,80 @@ async function buildImagePrompt(
     'Describe the content of the reference image(s) in a short English phrase (subject + key visual details only).',
     'Then combine with the user description below into ONE English image generation prompt.',
     'Keep the user description\'s intent as the PRIMARY subject. Do NOT add unrelated elements.',
-    'Append at the end: high quality, sharp focus.',
-    'Output ONLY the final prompt — no labels, no quotes.',
   ]
 
-  if (params.backgroundImage) {
-    const { mimeType, data } = splitDataUrl(params.backgroundImage)
-    parts.push('Image 1 = background/scene')
+  if (params.productImage) {
+    const { mimeType, data } = splitDataUrl(params.productImage)
+    parts.push('Image 1 = product to feature')
     visionParts.push({ inlineData: { mimeType, data } })
   }
   if (params.personImage) {
     const { mimeType, data } = splitDataUrl(params.personImage)
-    parts.push('Image 2 = person/character to feature')
+    parts.push(`Image ${params.productImage ? 2 : 1} = person/character to feature`)
     visionParts.push({ inlineData: { mimeType, data } })
+  }
+  if (params.personImage && params.productImage) {
+    parts.push('Compose this as a product review photo: the person clearly holding or showcasing the product.')
   }
   if (params.description) parts.push(`User description: "${params.description}"`)
   if (params.speak)       parts.push(`Include this caption text in the image: "${params.speak}"`)
+  parts.push('Append at the end: high quality, sharp focus.')
+  parts.push('Output ONLY the final prompt — no labels, no quotes.')
+
+  const res = await fetch(`${GEMINI_BASE}/models/gemini-2.5-flash:generateContent`, {
+    method: 'POST',
+    headers: geminiHeaders(apiKey),
+    body: JSON.stringify({
+      contents: [{
+        role: 'user',
+        parts: [{ text: parts.join('\n') }, ...visionParts],
+      }],
+    }),
+  })
+
+  if (!res.ok) return buildTextPrompt(params)
+  const json = await res.json()
+  return json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || buildTextPrompt(params)
+}
+
+// Used only when reference images are uploaded — describes what's visible and
+// turns it into a video prompt (e.g. person + product → product review scene)
+async function buildVideoPrompt(apiKey: string, params: GenerateParams): Promise<string> {
+  if (!apiKey || (!params.personImage && !params.productImage)) {
+    return buildTextPrompt(params)
+  }
+
+  const visionParts: object[] = []
+  const parts: string[] = [
+    'Describe the content of the reference image(s) in a short English phrase (subject + key visual details only).',
+  ]
+
+  if (params.productImage) {
+    const { mimeType, data } = splitDataUrl(params.productImage)
+    parts.push('Image 1 = product being featured')
+    visionParts.push({ inlineData: { mimeType, data } })
+  }
+  if (params.personImage) {
+    const { mimeType, data } = splitDataUrl(params.personImage)
+    parts.push(`Image ${params.productImage ? 2 : 1} = person/character`)
+    visionParts.push({ inlineData: { mimeType, data } })
+  }
+
+  if (params.personImage && params.productImage) {
+    parts.push(
+      'Then write ONE English video generation prompt: the person enthusiastically presents and reviews the product — holding it up, showing details to camera, talking, professional product-review style, well-lit, vertical 9:16 framing.'
+    )
+  } else if (params.productImage) {
+    parts.push(
+      'Then write ONE English video generation prompt for a professional product showcase video — smooth rotating/close-up shots highlighting the product, clean studio lighting, vertical 9:16 framing.'
+    )
+  } else {
+    parts.push('Then write ONE English video generation prompt featuring this person, cinematic, vertical 9:16 framing.')
+  }
+
+  if (params.description) parts.push(`User description: "${params.description}"`)
+  if (params.speak)       parts.push(`The person should be saying: "${params.speak}"`)
+  parts.push('Output ONLY the final prompt — no labels, no quotes.')
 
   const res = await fetch(`${GEMINI_BASE}/models/gemini-2.5-flash:generateContent`, {
     method: 'POST',
@@ -222,7 +280,7 @@ export async function generateImage(
   params: GenerateParams,
   source: ImageSource = 'auto'
 ): Promise<string> {
-  const hasImages = !!(params.backgroundImage || params.personImage)
+  const hasImages = !!(params.productImage || params.personImage)
   let prompt: string
 
   if (hasImages && apiKey) {
@@ -315,10 +373,11 @@ export async function searchStockPhoto(
 }
 
 async function generateVideoFal(
+  apiKey: string,
   falKey: string,
   params: GenerateParams
 ): Promise<string> {
-  const prompt = buildTextPrompt(params)
+  const prompt = await buildVideoPrompt(apiKey, params)
 
   const submitRes = await fetch(`${FAL_BASE}/${FAL_VIDEO_MODEL}`, {
     method: 'POST',
@@ -364,8 +423,8 @@ export async function generateVideo(
   params: GenerateParams
 ): Promise<string> {
   // Use Fal.ai (Wan2.1) when key is provided — cheaper & no quota issues
-  if (falKey) return generateVideoFal(falKey, params)
-  const prompt = buildTextPrompt(params)
+  if (falKey) return generateVideoFal(apiKey, falKey, params)
+  const prompt = await buildVideoPrompt(apiKey, params)
 
   const res = await fetch(
     `${GEMINI_BASE}/models/veo-3.1-generate-preview:predictLongRunning`,

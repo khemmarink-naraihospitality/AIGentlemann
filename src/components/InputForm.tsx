@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { ImageIcon, User, X, Loader2, Video } from 'lucide-react'
+import { ImageIcon, User, X, Loader2, Video, Package } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { generateImage, generateVideo, searchStockPhoto, type GenerateParams } from '../services/aiService'
 import { db } from '../db/db'
@@ -11,14 +11,14 @@ interface FilePreview {
 
 export function InputForm() {
   const { apiKey, hfToken, falKey, pexelsKey, imageSource, showToast, setActiveTab, refreshHistory } = useApp()
-  const [bgFile, setBgFile] = useState<FilePreview | null>(null)
+  const [productFile, setProductFile] = useState<FilePreview | null>(null)
   const [personFile, setPersonFile] = useState<FilePreview | null>(null)
   const [description, setDescription] = useState('')
   const [speak, setSpeak] = useState('')
   const [loadingImg, setLoadingImg] = useState(false)
   const [loadingVid, setLoadingVid] = useState(false)
 
-  const bgRef = useRef<HTMLInputElement>(null)
+  const productRef = useRef<HTMLInputElement>(null)
   const personRef = useRef<HTMLInputElement>(null)
 
   const readFile = (file: File): Promise<string> =>
@@ -109,7 +109,7 @@ export function InputForm() {
 
     try {
       const params: GenerateParams = {
-        backgroundImage: bgFile?.dataUrl,
+        productImage: productFile?.dataUrl,
         personImage: personFile?.dataUrl,
         description: description.trim() || undefined,
         speak: speak.trim() || undefined,
@@ -145,21 +145,21 @@ export function InputForm() {
       {/* Image uploads — side by side */}
       <div className="grid grid-cols-2 gap-3">
 
-        {/* Background Image */}
+        {/* Product Image */}
         <div>
           <label className="block text-xs font-medium text-slate-300 mb-2">
-            Background{' '}
+            Product{' '}
             <span className="text-slate-500 font-normal">(optional)</span>
           </label>
-          {bgFile ? (
+          {productFile ? (
             <div className="relative rounded-xl overflow-hidden h-24 bg-slate-800">
               <img
-                src={bgFile.dataUrl}
-                alt="Background preview"
-                className="w-full h-full object-cover"
+                src={productFile.dataUrl}
+                alt="Product preview"
+                className="w-full h-full object-contain"
               />
               <button
-                onClick={() => setBgFile(null)}
+                onClick={() => setProductFile(null)}
                 className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/60 rounded-full flex items-center justify-center hover:bg-black/80 transition-colors"
               >
                 <X className="w-3 h-3 text-white" />
@@ -167,19 +167,19 @@ export function InputForm() {
             </div>
           ) : (
             <button
-              onClick={() => bgRef.current?.click()}
+              onClick={() => productRef.current?.click()}
               className="w-full h-24 border-2 border-dashed border-slate-600 rounded-xl flex flex-col items-center justify-center gap-1.5 text-slate-400 hover:border-indigo-500 hover:text-indigo-400 active:bg-indigo-500/5 transition-colors bg-slate-800/40"
             >
-              <ImageIcon className="w-5 h-5" />
-              <span className="text-xs text-center leading-tight px-1">Upload Background</span>
+              <Package className="w-5 h-5" />
+              <span className="text-xs text-center leading-tight px-1">Upload Product</span>
             </button>
           )}
           <input
-            ref={bgRef}
+            ref={productRef}
             type="file"
             accept="image/jpeg,image/png,image/webp"
             className="hidden"
-            onChange={e => handleFile(e, setBgFile)}
+            onChange={e => handleFile(e, setProductFile)}
           />
         </div>
 
@@ -222,6 +222,12 @@ export function InputForm() {
         </div>
 
       </div>
+
+      {productFile && personFile && (
+        <p className="text-xs text-slate-500 -mt-2">
+          อัปโหลดทั้งรูปสินค้าและรูปบุคคล — ระบบจะสร้างเป็นวิดีโอ/ภาพรีวิวสินค้าให้อัตโนมัติ
+        </p>
+      )}
 
       {/* Description */}
       <div>
